@@ -1,0 +1,106 @@
+---
+title: "Coursera - Regression Project"
+author: "Matt Hartman"
+date: "May 25, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Executive Summary
+The results of this study show strong evidence that manual transmissions outperform automatic transmissions with respect to miles per gallon. Controlling for cylinders, horse power and weight, it appears as though manual transmission result in an approximate 1.8 miles per gallon increase as compared with automatic transmissions.
+
+#### Data Transformation
+Lets change the format of the categorical variables to factor.
+
+```{r clean}
+data(mtcars)
+mtcars$cyl  <- factor(mtcars$cyl)
+mtcars$vs   <- factor(mtcars$vs)
+mtcars$am   <- factor(mtcars$am)
+mtcars$gear <- factor(mtcars$gear)
+mtcars$carb <- factor(mtcars$carb)
+```
+
+#### Exploratory Data Analysis
+Appendix - Part 1 displays a violin plot of miles per gallon and transmission type, which is a mirrored density plot displayed in the same way as a boxplot. It appears as though manual transmissions (1) outperform automatic transmissions (0) with respect to miles per gallon. We can explore a relationship further with a t-test. 
+
+#### Inference
+Lets determine if tranmission type has an effect on miles per gallon:
+```{r test}
+t.test(mpg ~ am, data = mtcars)
+```
+The result of the test is a p value of 0.001374, which is less than 0.05 and the confidence interval does not contain zero. We can reject the null hypothesis and conclude that there is a correlation between transmission type and mpg.  
+
+#### Model Creation
+```{r model_creation}
+model_am <- lm(mpg ~ am, data = mtcars) #Model one includes the transmission variable in order to generate a baseline result
+model_all <- lm(mpg ~ ., data = mtcars) #Model two includes all variables
+model_step <- step(model_all, direction = "backward", trace = FALSE) #Model three uses a backward selection function
+```
+Another option would be to use the package "leaps", which also allows for automated approaches to model selection.
+
+#### Model Selection
+```{r compare_models, echo=FALSE}
+paste("Model am has an adjusted r squared value of: ", summary(model_am)$adj.r.squared)
+paste("Model all has an adjusted r squared value of: ", summary(model_all)$adj.r.squared)
+paste("Model step has an adjusted r squared value of: ", summary(model_step)$adj.r.squared)
+```
+
+```{r anova}
+anova(model_am, model_step, model_all)
+```
+The P-values are for a test of whether all of the new variables are all zero or not (i.e. whether or not they're necessary). So this test would conclude that all of the added Model 2 terms are necessary over Model 1, but does not confirm that the additional Model 3 terms are necessary. Coupled with the adjusted r squared performance for each model, I am selecting Model 2 (or model_step) as the best model.
+
+#### Diagnostic Tests
+```{r resid}
+par(mfrow=c(2, 2))
+plot(model_step)
+```
+
+* The Residuals vs Fitted plot exhibits a random pattern confirming they are independent.
+* The Normal Q-Q plot exhibits normality because the most of the points fall on the the line with no gross departures.
+* The Scale-Location plot does not exhibit any patterns indicating a constant variance.
+* The Residuals vs Leverage plot identifies a few points (labeled) of interest and warrant further investigation.
+
+```{r diagnostic}
+#Points of interest with respect to influence
+influential <- dfbetas(model_step)
+tail(sort(influential[,6]),3) #Column 6 refers to transmission type
+
+#Points of interest with respect to leverage
+leverage <- hatvalues(model_step)
+tail(sort(leverage),3)
+```
+The Scale-Location plot and Residuals vs Leverage plot each identify 3 points of interest. We can further explore these points to determine if there was a data entry error or whether they should be discarded from our analysis because they are outliers. This is outside the scope of this project, but addional models could be run excluding the variables to observe the effect on the model results.
+
+#### Additional Findings
+```{r conclusion, echo=FALSE}
+summary(model_step)$coef
+```
+1. Increasing from 4 cylinders to 6 cylinders results in an approximate 3 mile per gallon decrease.
+2. Increasing to 8 cylinders will result in an additional 2 mile per gallon decrease.
+3. An increase in horse of power of 100 will translate into an approximate 3 mile per gallon decrease.
+4. An increase of 1000 lbs in weight will translate into an approximate 2.5 mile per gallon decrease.
+
+####Appendix
+###### Part 1
+```{r pressure}
+library(ggplot2)
+ggplot(mtcars, aes(x=am, y=mpg, fill=am)) +
+  geom_violin(colour = "black", size = 2) +
+  theme_minimal()
+```
+
+
+
+
+
+
+
+
+
